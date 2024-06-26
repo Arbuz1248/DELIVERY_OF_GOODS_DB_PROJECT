@@ -24,8 +24,8 @@ class User(Base):
     name = Column(String(50), index=True)  # Указываем длину для VARCHAR
     email = Column(String(100), unique=True, index=True)  # Указываем длину для VARCHAR
 
-class Product(Base):
-    __tablename__ = "product"
+class Products(Base):
+    __tablename__ = "products"
 
     id = Column(Integer, primary_key=True, index=True)
     product_name = Column(String(50), index=True)
@@ -47,7 +47,7 @@ class Shipments(Base):
     __tablename__ = "shipments"
 
     id = Column(Integer, nullable=False, index=True, primary_key=True)
-    product_id = Column(Integer, ForeignKey("product.id"), index=True)
+    products_id = Column(Integer, ForeignKey("products.id"), index=True)
     date_shipment = Column(Date, index=True, nullable=False)
     have_been_shiped = Column(String(25), nullable=False, index=True)
 
@@ -68,11 +68,11 @@ class UserResponse(BaseModel):
     class Config:
         orm_mode = True
 
-class PrudctCreate(BaseModel):
+class ProductsCreate(BaseModel):
     product_name: str
     cost: int
 
-class ProductResponse(BaseModel):
+class ProductsResponse(BaseModel):
     id: int
     product_name: str
     cost: int
@@ -113,7 +113,7 @@ class OrdersResponse(BaseModel):
     date_order: datetime.date
     name_product: str
     scheduled_delivery: str
-    
+
     class Config:
         orm_mode = True
 
@@ -146,95 +146,49 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=400, detail="Email already registered")
 
-# GOODS
-@app.get("/goods/{good_id}", response_model=GoodsResponse)
-def read_good(good_id: int, db: Session = Depends(get_db)):
-    good = db.query(Goods).filter(Goods.id == good_id).first()
-    if good is None:
-        raise HTTPException(status_code=404, detail="Good not found")
-    return good
+# Products
+@app.get("/products/{products_id}", response_model=ProductsResponse)
+def read_product(product_id: int, db: Session = Depends(get_db)):
+    product = db.query(Products).filter(Products.id == product_id).first()
+    if product is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
 
-@app.post("/goods/", response_model=GoodsResponse)
-def create_good(good: GoodsCreate, db: Session = Depends(get_db)):
-    db_good = Goods(good_name=good.good_name, workshop_id=good.workshop_id, unit_cost=good.unit_cost)
+@app.post("/products/", response_model=ProductsResponse)
+def create_product(product: ProductsCreate, db: Session = Depends(get_db)):
+    db_product = Products(product_name=product.product_name, cost=product.cost)
     try:
-        db.add(db_good)
+        db.add(db_product)
         db.commit()
-        db.refresh(db_good)
-        return db_good
+        db.refresh(db_product)
+        return db_product
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Good is already existed")
+        raise HTTPException(status_code=400, detail="Product is already existed")
 
-@app.delete("/goods/{good_id}", response_model=GoodsResponse)
-def delete_good(good_id: int, db: Session = Depends(get_db)):
-    good = db.query(Goods).filter(Goods.id == good_id).first()
-    if good is None:
-        raise HTTPException(status_code=404, detail="Good not found")
+@app.delete("/products/{product_id}", response_model=ProductsResponse)
+def delete_product(product_id: int, db: Session = Depends(get_db)):
+    product = db.query(Products).filter(Products.id == product_id).first()
+    if product is None:
+        raise HTTPException(status_code=404, detail="Product not found")
     else:
-        db.delete(good)
+        db.delete(product)
         db.commit()
-        return good
+        return product
 
-@app.put("/goods/{good_id}", response_model=GoodsResponse)
-def update_good(good_id: int, good: GoodsCreate, db: Session = Depends(get_db)):
-    db_good = Goods(good_name=good.good_name, workshop_id=good.workshop_id, unit_cost=good.unit_cost)
-    current_good = db.query(Goods).filter(Goods.id == good_id).first()
-    if current_good is None:
-        raise HTTPException(status_code=404, detail="Good not found")
+@app.put("/products/{product_id}", response_model=ProductsResponse)
+def update_product(product_id: int, product: ProductsCreate, db: Session = Depends(get_db)):
+    db_product = Products(product_name=product.product_name,  cost=product.cost)
+    current_product = db.query(Products).filter(Products.id == product_id).first()
+    if current_product is None:
+        raise HTTPException(status_code=404, detail="Product not found")
     else:
-        current_good.good_name = db_good.good_name
-        current_good.workshop_id = db_good.workshop_id
-        current_good.unit_cost = db_good.unit_cost
-        db.add(current_good)
+        current_product.product_name = db_product.product_name
+        current_product.cost = db_product.cost
+        db.add(current_product)
         db.commit()
-        db.refresh(current_good)
-    return current_good
-
-# WORKSHOP
-@app.get("/workshops/{workshop_id}", response_model=WorkshopResponse)
-def read_workshop(workshop_id: int, db: Session = Depends(get_db)):
-    workshop = db.query(Workshops).filter(Workshops.id == workshop_id).first()
-    if workshop is None:
-        raise HTTPException(status_code=404, detail="Workshop not found")
-    return workshop
-
-@app.post("/workshops/", response_model=WorkshopResponse)
-def create_workshop(workshop: WorkshopCreate, db: Session = Depends(get_db)):
-    db_workshop = Workshops(name=workshop.name, workshop_head=workshop.workshop_head, phone=workshop.phone)
-    try:
-        db.add(db_workshop)
-        db.commit()
-        db.refresh(db_workshop)
-        return db_workshop
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(status_code=400, detail="Workshop is already existed")
-
-@app.delete("/workshops/{workshop_id}", response_model=WorkshopResponse)
-def delete_workshop(workshop_id: int, db: Session = Depends(get_db)):
-    workshop = db.query(Workshops).filter(Workshops.id == workshop_id).first()
-    if workshop is None:
-        raise HTTPException(status_code=404, detail="Workshop not found")
-    else:
-        db.delete(workshop)
-        db.commit()
-        return workshop
-
-@app.put("/workshops/{workshop_id}", response_model=WorkshopResponse)
-def update_workshop(workshop_id: int, workshop: WorkshopCreate, db: Session = Depends(get_db)):
-    db_workshop = Workshops(name=workshop.name, workshop_head=workshop.workshop_head, phone=workshop.phone)
-    current_workshop = db.query(Workshops).filter(Workshops.id == workshop_id).first()
-    if current_workshop is None:
-        raise HTTPException(status_code=404, detail="Workshop not found")
-    else:
-        current_workshop.name = db_workshop.name
-        current_workshop.workshop_head = db_workshop.workshop_head
-        current_workshop.phone = db_workshop.phone
-        db.add(current_workshop)
-        db.commit()
-        db.refresh(current_workshop)
-    return current_workshop
+        db.refresh(current_product)
+    return current_product
 
 # ORDERS
 @app.get("/orders/{order_id}", response_model=OrdersResponse)
@@ -246,7 +200,8 @@ def read_order(order_id: int, db: Session = Depends(get_db)):
 
 @app.post("/orders/", response_model=OrdersResponse)
 def create_order(order: OrdersCreate, db: Session = Depends(get_db)):
-    db_order = Orders(contract_id=order.contract_id, good_id=order.good_id, amount=order.amount)
+    db_order = Orders(name_customer=order.name_customer, address_customer=order.address_customer, phone_customer=order.phone_customer, constract_number=order.constract_number,
+                      date_order=order.date_order, name_product=order.name_product, scheduled_delivery=order.scheduled_delivery)
     try:
         db.add(db_order)
         db.commit()
@@ -255,74 +210,5 @@ def create_order(order: OrdersCreate, db: Session = Depends(get_db)):
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=400, detail="Order is already existed")
+    
 
-@app.delete("/orders/{order_id}", response_model=OrdersResponse)
-def delete_order(order_id: int, db: Session = Depends(get_db)):
-    order = db.query(Orders).filter(Orders.id == order_id).first()
-    if order is None:
-        raise HTTPException(status_code=404, detail="Workshop not found")
-    else:
-        db.delete(order)
-        db.commit()
-        return order
-
-@app.put("/orders/{order_id}", response_model=OrdersResponse)
-def update_order(order_id: int, order: OrdersCreate, db: Session = Depends(get_db)):
-    db_order = Orders(contract_id=order.contract_id, good_id=order.good_id, amount=order.amount)
-    current_order = db.query(Orders).filter(Orders.id == order_id).first()
-    if current_order is None:
-        raise HTTPException(status_code=404, detail="Workshop not found")
-    else:
-        current_order.contract_id = db_order.contract_id
-        current_order.good_id= db_order.good_id
-        current_order.amount = db_order.amount
-        db.add(current_order)
-        db.commit()
-        db.refresh(current_order)
-    return current_order
-
-# CONTRACTS
-@app.get("/contracts/{contract_id}", response_model=ContractsResponse)
-def read_contract(contract_id: int, db: Session = Depends(get_db)):
-    contract = db.query(Contracts).filter(Contracts.id == contract_id).first()
-    if contract is None:
-        raise HTTPException(status_code=404, detail="Order not found")
-    return contract
-
-@app.post("/contracts/", response_model=ContractsResponse)
-def create_contract(contract: ContractsCreate, db: Session = Depends(get_db)):
-    db_contract = Contracts(name=contract.name, address=contract.address, date_registration=contract.date_registration, date_completion=contract.date_completion)
-    try:
-        db.add(db_contract)
-        db.commit()
-        db.refresh(db_contract)
-        return db_contract
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(status_code=400, detail="Contract is already existed")
-
-@app.delete("/contracts/{contract_id}", response_model=ContractsResponse)
-def delete_contract(contract_id: int, db: Session = Depends(get_db)):
-    contract = db.query(Contracts).filter(Contracts.id == contract_id).first()
-    if contract is None:
-        raise HTTPException(status_code=404, detail="Workshop not found")
-    else:
-        db.delete(contract)
-        db.commit()
-        return contract
-
-@app.put("/contracts/{contract_id}", response_model=ContractsResponse)
-def update_contract(contract_id: int, contract: ContractsCreate, db: Session = Depends(get_db)):
-    db_contract = Contracts(name=contract.name, address=contract.address, date_registration=contract.date_registration, date_completion=contract.date_completion)
-    current_contract = db.query(Contracts).filter(Contracts.id == contract_id).first()
-    if current_contract is None:
-        raise HTTPException(status_code=404, detail="Workshop not found")
-    else:
-        current_contract.name = db_contract.name
-        current_contract.address = db_contract.address
-        current_contract.date_registration = db_contract.date_registration
-        current_contract.date_completion = db_contract.date_completion
-        db.add(current_contract)
-        db.commit()
-        db.refresh(current_contract)
-    return current_contract
